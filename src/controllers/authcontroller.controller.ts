@@ -7,41 +7,40 @@ import { AuthRequest } from "../middlewares/auth.middlewares";
 
 const JWT_REFRESH_SECRET: string = process.env.JWT_REFRESH_SECRET || '';
 
-// /api/v1/auth/register
-export const register = async(req: Request, res: Response) => {
-    // res.status(201).json({ message: 'User registered successfully' })
+/// /api/v1/auth/register
+export const register = async (req: Request, res: Response) => {
+  try {
+    const { fullName, email, password, role } = req.body
 
-    try {
-    const { firstName, lastName, email, password, role } = req.body
+    console.log(fullName, email, password, role)
 
-    console.log(firstName)
-    console.log(lastName)
-    console.log(email)
-    console.log(password)
-    console.log(role)
-
-    // data validation
-    if (!firstName || !lastName || !email || !password || !role) {
+    // 1️⃣ Validation
+    if (!fullName || !email || !password || !role) {
       return res.status(400).json({ message: "All fields are required" })
     }
 
-    if (role !== Role.USER && role !== Role.AUTHOR) {
+    // 2️⃣ Role validation (ONLY USER & ADMIN)
+    if (role !== Role.USER && role !== Role.ADMIN) {
       return res.status(400).json({ message: "Invalid role" })
     }
 
+    // 3️⃣ Check existing user
     const existingUser = await User.findOne({ email })
     if (existingUser) {
-      return res.status(400).json({ message: "Email alrady registered" })
+      return res.status(400).json({ message: "Email already registered" })
     }
 
+    // 4️⃣ Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const approvalStatus =
-      role === Role.AUTHOR ? Status.PENDING : Status.APPROVED
+    // 5️⃣ Approval logic
+    // USER → approved
+    // ADMIN → approved (or change if you want manual approval)
+    const approvalStatus = Status.APPROVED
 
+    // 6️⃣ Save user
     const newUser = new User({
-      firstName, // firstname: firstname
-      lastName,
+      fullName,
       email,
       password: hashedPassword,
       roles: [role],
@@ -50,10 +49,11 @@ export const register = async(req: Request, res: Response) => {
 
     await newUser.save()
 
-    res.status(201).json({
+    // 7️⃣ Response
+    return res.status(201).json({
       message:
-        role === role.AUTHOR
-          ? "Author registered successfully. waiting for approvel"
+        role === Role.ADMIN
+          ? "Admin registered successfully"
           : "User registered successfully",
       data: {
         id: newUser._id,
@@ -62,8 +62,11 @@ export const register = async(req: Request, res: Response) => {
         approved: newUser.approved
       }
     })
+
   } catch (err: any) {
-    res.status(500).json({ message: err?.message })
+    return res.status(500).json({
+      message: err?.message || "Server error"
+    })
   }
 }
 
@@ -117,11 +120,11 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     })
   }
 
-  const { firstName, lastName, email, roles, approved } = user
+  const { fullName, email, roles, approved } = user
 
   res.status(200).json({
     message: "Ok",
-    data: { firstName, lastName, email, roles, approved }
+    data: { fullName, email, roles, approved }
   })
 }
 
@@ -130,10 +133,10 @@ export const registerAdmin = async (req: Request, res: Response) => {
     // res.status(201).json({ message: 'Admin registered successfully' })
 
     try {
-    const { firstname, lastname, email, password} = req.body
+    const { fullName, email, password} = req.body
 
     // data validation
-    if (!firstname || !lastname || !email || !password) {
+    if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" })
     }
 
@@ -145,8 +148,7 @@ export const registerAdmin = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const newUser = new User({
-      firstname, // firstname: firstname
-      lastname,
+      fullName, // fullName: fullName
       email,
       password: hashedPassword,
       roles: [Role.ADMIN],

@@ -17,7 +17,8 @@ app.use(express.json())
 // CORS middleware configuration
 app.use(cors({
     origin: 'http://localhost:5173',            
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],  
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+    credentials: true 
 }))              
 
 // Mount auth routes, mekath middleware ekak
