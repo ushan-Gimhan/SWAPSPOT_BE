@@ -14,31 +14,31 @@ export const register = async (req: Request, res: Response) => {
 
     console.log(fullName, email, password, role)
 
-    // 1️⃣ Validation
+    //Validation
     if (!fullName || !email || !password || !role) {
       return res.status(400).json({ message: "All fields are required" })
     }
 
-    // 2️⃣ Role validation (ONLY USER & ADMIN)
+    //Role validation (ONLY USER & ADMIN)
     if (role !== Role.USER && role !== Role.ADMIN) {
       return res.status(400).json({ message: "Invalid role" })
     }
 
-    // 3️⃣ Check existing user
+    //Check existing user
     const existingUser = await User.findOne({ email })
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" })
     }
 
-    // 4️⃣ Hash password
+    //Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // 5️⃣ Approval logic
+    //Approval logic
     // USER → approved
     // ADMIN → approved (or change if you want manual approval)
     const approvalStatus = Status.APPROVED
 
-    // 6️⃣ Save user
+    // Save user
     const newUser = new User({
       fullName,
       email,
@@ -49,7 +49,7 @@ export const register = async (req: Request, res: Response) => {
 
     await newUser.save()
 
-    // 7️⃣ Response
+    //Response
     return res.status(201).json({
       message:
         role === Role.ADMIN
