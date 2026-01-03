@@ -106,26 +106,36 @@ export const login = async (req: Request, res: Response) => {
 
 // /api/v1/auth/me
 export const getMe = async (req: AuthRequest, res: Response) => {
-     // const roles = req.user.roles
-  if (!req.user) {
-    return res.status(401).json({ message: "Unauthorized" })
-  }
-  const userId = req.user.sub
-  const user =
-    ((await User.findById(userId).select("-password")) as IUser) || null
+  try {
+    // req.user is populated by your middleware
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" })
+    }
 
-  if (!user) {
-    return res.status(404).json({
-      message: "User not found"
+    // Handle both 'sub' (standard JWT) or 'id' (custom) property
+    const userId = req.user.sub || req.user.id || req.user._id;
+
+    const user = await User.findById(userId).select("-password") as IUser | null;
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    const { fullName, email, roles, approved } = user
+
+    res.status(200).json({
+      message: "Ok",
+      data: { 
+        id: user._id, // It's good practice to return ID here
+        fullName, 
+        email, 
+        roles, 
+        approved 
+      }
     })
+  } catch (error: any) {
+    res.status(500).json({ message: "Server Error" })
   }
-
-  const { fullName, email, roles, approved } = user
-
-  res.status(200).json({
-    message: "Ok",
-    data: { fullName, email, roles, approved }
-  })
 }
 
 // /api/v1/auth/admin/register

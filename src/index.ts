@@ -1,6 +1,7 @@
 import express from 'express'                   
 import cors from 'cors'     
 import authRoutes from './routes/auth.routes'  
+import itemRoutes from './routes/item.routes'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 
@@ -23,6 +24,7 @@ app.use(cors({
 
 // Mount auth routes, mekath middleware ekak
 app.use('/api/v1/auth', authRoutes)     
+app.use('/api/v1/items', itemRoutes)
 
 mongoose.connect(MONGO_URI)
   .then(() => {
