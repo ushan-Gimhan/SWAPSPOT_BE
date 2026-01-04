@@ -1,15 +1,15 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-// 1. FIX: Updated Enum to match Frontend <option> values exactly
+// 1. Condition Enum (Matches Frontend <select> values exactly)
 export enum ItemCondition {
   BRAND_NEW = "Brand New",
   LIKE_NEW = "Like New",
   USED_GOOD = "Used - Good",
   USED_FAIR = "Used - Fair",
-  FOR_PARTS = "For Parts" // Changed from POOR to match likely frontend option
+  FOR_PARTS = "For Parts"
 }
 
-// 2. Trade Mode
+// 2. Trade Mode Enum (Matches Frontend logic)
 export enum TradeMode {
   SELL = "SELL",
   EXCHANGE = "EXCHANGE",
@@ -52,7 +52,7 @@ const itemSchema = new Schema<IItem>(
     category: { 
       type: String, 
       required: [true, "Category is required"],
-      lowercase: true, // Note: "Tech & Electronics" becomes "tech & electronics"
+      lowercase: true, 
       trim: true
     },
     price: { 
@@ -61,17 +61,16 @@ const itemSchema = new Schema<IItem>(
     },
     condition: {
       type: String,
-      // FIX: This now validates against "Like New", "Brand New", etc.
-      enum: Object.values(ItemCondition), 
+      enum: Object.values(ItemCondition) as string[], // Cast to string[] for TS safety
       required: [true, "Condition is required"]
     },
     images: { 
-      type: [String], 
+      type: [String], // Array of Strings (URLs from ImgBB)
       default: [] 
     },
     mode: {
       type: String,
-      enum: Object.values(TradeMode),
+      enum: Object.values(TradeMode) as string[], // Cast to string[] for TS safety
       default: TradeMode.SELL
     },
     seeking: {
@@ -85,9 +84,6 @@ const itemSchema = new Schema<IItem>(
       type: Boolean, 
       default: true 
     }
-  },
-  { 
-    timestamps: true 
   }
 );
 

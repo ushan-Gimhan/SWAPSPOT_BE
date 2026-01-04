@@ -5,34 +5,35 @@ import { AuthRequest } from "../middlewares/auth.middlewares"; // Or wherever yo
 // /api/v1/items/create
 export const createItem = async (req: AuthRequest, res: Response) => {
   try {
-    //Robust User ID check (Handles id, _id, or sub)
+    // User ID Check
     const userId = req.user?.id || req.user?._id || req.user?.sub;
 
     if (!userId) {
       return res.status(401).json({ message: "User identity missing from token" });
     }
 
-    const { title, description, category, price, condition, mode, seeking, aiSuggestedPrice } = req.body;
+    // Destructure (Now including 'images')
+    const { title, description, category, price, condition, mode, seeking, aiSuggestedPrice, images } = req.body;
 
-    // Validation
+    //Validation
     if (!title || !description || !category || !condition || !mode) {
       return res.status(400).json({ message: "All required fields must be provided" });
     }
 
-    // Create the item
+    // 4. Create Item
     const newItem = new Item({
       userId: userId,
       title,
       description,
       category,
-      // Logic: If Charity/Exchange, price is 0. Else use provided price.
       price: (mode === 'CHARITY' || mode === 'EXCHANGE') ? 0 : Number(price),
       condition,
       mode,
       seeking: (mode === 'EXCHANGE') ? seeking : "",
       aiSuggestedPrice,
-      // Handle Multer files -> map to array of paths
-      images: req.files ? (req.files as any[]).map(f => f.path) : [] 
+      // CHANGE: Directly use the array of URLs sent from frontend
+      // If images is undefined, default to empty array
+      images: Array.isArray(images) ? images : [] 
     });
 
     const savedItem = await newItem.save();
@@ -48,37 +49,59 @@ export const createItem = async (req: AuthRequest, res: Response) => {
   }
 }
 
-// /api/v1/items (Get All with filters)
+// /api/v1/items (Get All with Filters + Pagination)
 export const getAllItems = async (req: Request, res: Response) => {
   try {
-    const { category, mode, search } = req.query
-    const query: any = { isActive: true }
-
-    // Filters
-    if (category) query.category = (category as string).toLowerCase()
-    if (mode) query.mode = (mode as string).toUpperCase()
+    // 1. Get Query Params (with defaults)
+    const { category, mode, search, page, limit } = req.query;
     
-    // Search logic (Title or Description)
+    // Default: Page 1, 20 items per page
+    const pageNumber = parseInt(page as string) || 1;
+    const limitNumber = parseInt(limit as string) || 20;
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const query: any = { isActive: true };
+
+    // 2. Apply Filters
+    if (category) query.category = (category as string).toLowerCase();
+    if (mode) query.mode = (mode as string).toUpperCase();
+    
+    // 3. Apply Search
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
-      ]
+      ];
     }
 
-    const items = await Item.find(query)
-      .populate("userId", "fullName email") // Show seller details
-      .sort({ createdAt: -1 }) // Newest first
+    // 4. Run Queries in Parallel (Get Items + Get Total Count)
+    const [items, totalItems] = await Promise.all([
+      Item.find(query)
+        .populate("userId", "fullName email avatar") // Added avatar if you have it
+        .sort({ createdAt: -1 }) // Newest first
+        .skip(skip)              // Skip previous pages
+        .limit(limitNumber),     // Limit results
+      Item.countDocuments(query) // Count total for pagination UI
+    ]);
 
+    // 5. Send Response
     res.status(200).json({
       message: "success",
-      count: items.length,
+      pagination: {
+        totalItems,
+        totalPages: Math.ceil(totalItems / limitNumber),
+        currentPage: pageNumber,
+        itemsPerPage: limitNumber,
+        hasNextPage: pageNumber * limitNumber < totalItems,
+        hasPrevPage: pageNumber > 1
+      },
       data: items
-    })
+    });
+
   } catch (err: any) {
-    res.status(500).json({ message: err?.message })
+    res.status(500).json({ message: err?.message || "Server Error" });
   }
-}
+};
 
 // /api/v1/items/:id
 export const getItemById = async (req: Request, res: Response) => {
