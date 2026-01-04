@@ -1,0 +1,19 @@
+import { Router } from 'express';
+import { authenticate } from '../middlewares/auth.middlewares';
+import { accessChat, fetchMyChats, sendMessage, allMessages } from '../controllers/chat.controller';
+
+const router = Router();
+
+// Create or access a chat
+router.post('/', authenticate, accessChat);
+
+// Get all chats for sidebar
+router.get('/', authenticate, fetchMyChats);
+
+// Send a message
+router.post('/message', authenticate, sendMessage);
+
+// Get messages for a specific chat ID
+router.get('/:chatId', authenticate, allMessages);
+
+export default router;
