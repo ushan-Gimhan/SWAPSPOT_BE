@@ -52,21 +52,21 @@ export const createItem = async (req: AuthRequest, res: Response) => {
 // /api/v1/items (Get All with Filters + Pagination)
 export const getAllItems = async (req: Request, res: Response) => {
   try {
-    // 1. Get Query Params (with defaults)
+    //Get Query Params (with defaults)
     const { category, mode, search, page, limit } = req.query;
     
-    // Default: Page 1, 20 items per page
+    //Page 1, 20 items per page
     const pageNumber = parseInt(page as string) || 1;
     const limitNumber = parseInt(limit as string) || 20;
     const skip = (pageNumber - 1) * limitNumber;
 
     const query: any = { isActive: true };
 
-    // 2. Apply Filters
+    //Apply Filters
     if (category) query.category = (category as string).toLowerCase();
     if (mode) query.mode = (mode as string).toUpperCase();
     
-    // 3. Apply Search
+    //Apply Search
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -74,7 +74,7 @@ export const getAllItems = async (req: Request, res: Response) => {
       ];
     }
 
-    // 4. Run Queries in Parallel (Get Items + Get Total Count)
+    //Run Queries in Parallel (Get Items + Get Total Count)
     const [items, totalItems] = await Promise.all([
       Item.find(query)
         .populate("userId", "fullName email avatar") // Added avatar if you have it
@@ -84,7 +84,7 @@ export const getAllItems = async (req: Request, res: Response) => {
       Item.countDocuments(query) // Count total for pagination UI
     ]);
 
-    // 5. Send Response
+    //Send Response
     res.status(200).json({
       message: "success",
       pagination: {

@@ -7,6 +7,7 @@ import {
   deleteItem,
 } from "../controllers/itemcontroller.controller"; 
 import { authenticate } from "../middlewares/auth.middlewares";
+import { getAiPriceSuggestion } from "../controllers/aicontroller.controller";
 
 const router = Router();
 
@@ -14,13 +15,12 @@ const router = Router();
 router.get("/", getAllItems);
 router.get("/:id", getItemById);
 
-// --- PROTECTED ROUTES ---
 
-// CHANGE: Removed 'upload.array("images", 5)'
-// The route now expects a standard JSON body containing image URLs
 router.post("/create", authenticate, createItem);
 
 router.put("/:id", authenticate, updateItem);
 router.delete("/:id", authenticate, deleteItem);
+
+router.post("/ai-price", authenticate, getAiPriceSuggestion);
 
 export default router;
