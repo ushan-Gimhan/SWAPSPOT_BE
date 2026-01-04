@@ -179,3 +179,24 @@ export const deleteItem = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: err?.message })
   }
 }
+
+export const getMyItems = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    
+    // ✅ FIX: Look for 'sub' as well
+    const userId = user.id || user._id || user.sub;
+
+    if (!userId) {
+      console.log("Debug: Token Payload:", user); // Log if it still fails
+      return res.status(401).json({ message: "Unauthorized: No user ID found." });
+    }
+
+    const items = await Item.find({ userId: userId }).sort({ createdAt: -1 });
+    res.status(200).json(items);
+
+  } catch (error) {
+    console.error("Error fetching user items:", error);
+    res.status(500).json({ message: "Server error while fetching your items." });
+  }
+};

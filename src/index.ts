@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.routes'
 import itemRoutes from './routes/item.routes'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
+import profileRoutes from './routes/profile.routes'
 
 dotenv.config()
 
@@ -25,6 +26,7 @@ app.use(cors({
 // Mount auth routes, mekath middleware ekak
 app.use('/api/v1/auth', authRoutes)     
 app.use('/api/v1/items', itemRoutes)
+app.use('/api/v1/', profileRoutes);
 
 mongoose.connect(MONGO_URI)
   .then(() => {
