@@ -15,13 +15,13 @@ export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   fullName: string;
   email: string;
-  password: string;
+  password?: string; // Made optional for Google OAuth users
   roles: Role[];
   approved: Status;
-  //Added these 3 new fields
   bio?: string;
   location?: string;
   avatar?: string;
+  googleId?: string; // Added googleId to interface
   createdAt: Date;
 }
 
@@ -35,19 +35,19 @@ export interface UpdateProfilePayload {
 const userSchema = new Schema<IUser>({
   fullName: { type: String, required: true },
   email: { type: String, unique: true, lowercase: true, required: true },
-  password: { type: String, required: true },
+  password: { type: String, required: false }, // Set to false to allow Google users
   roles: { type: [String], enum: Object.values(Role), default: [Role.USER] },
   approved: {
     type: String,
     enum: Object.values(Status),
     default: Status.PENDING
   },
-  //Added Schema definitions here
   bio: { type: String, default: "" },
   location: { type: String, default: "Colombo, Sri Lanka" },
   avatar: { type: String, default: "" },
+  googleId: { type: String, unique: true, sparse: true }, // Added googleId to schema
   
-}, { timestamps: true }); // Automatically manages createdAt and updatedAt
+}, { timestamps: true });
 
 export const User = mongoose.model<IUser>("User", userSchema);
 export default User;
