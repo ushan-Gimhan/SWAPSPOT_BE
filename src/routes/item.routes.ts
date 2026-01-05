@@ -6,6 +6,7 @@ import {
   updateItem, 
   deleteItem,
   getMyItems,
+  getOthersItems,
 } from "../controllers/itemcontroller.controller"; 
 import { authenticate } from "../middlewares/auth.middlewares";
 import { getAiPriceSuggestion } from "../controllers/aicontroller.controller";
@@ -15,6 +16,7 @@ const router = Router();
 // --- PUBLIC ROUTES ---
 router.get("/", getAllItems);
 router.get("/my-items", authenticate, getMyItems);
+router.get("/users-item" , authenticate, getOthersItems)
 router.get("/:id", getItemById);
 
 

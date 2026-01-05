@@ -200,3 +200,31 @@ export const getMyItems = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error while fetching your items." });
   }
 };
+
+// /api/v1/items/others
+export const getOthersItems = async (req: AuthRequest, res: Response) => {
+  try {
+    // 1. Identify the current user
+    const userId = req.user?.id || req.user?._id || req.user?.sub;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User identity missing" });
+    }
+
+    // 2. Fetch items where userId is NOT equal ($ne) to the current user
+    // We also likely want the most recent items first (.sort)
+    const items = await Item.find({ 
+      userId: { $ne: userId } 
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: items.length,
+      data: items
+    });
+
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ message: err?.message || "Server error" });
+  }
+}
