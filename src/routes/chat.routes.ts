@@ -13,6 +13,8 @@ router.get('/', authenticate, fetchMyChats);
 // Send a message
 router.post('/message', authenticate, sendMessage);
 
+router.get('/user-chats', authenticate, fetchMyChats);
+
 // Get messages for a specific chat ID
 router.get('/:chatId', authenticate, allMessages);
 

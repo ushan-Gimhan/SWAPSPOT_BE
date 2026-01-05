@@ -9,14 +9,14 @@ export interface IChat extends Document {
 }
 
 const ChatSchema: Schema = new Schema({
-  // ⚠️ MUST be named 'participants' to match controller
+  // MUST be named 'participants' to match controller
   participants: [{ 
       type: Schema.Types.ObjectId, 
       ref: 'User', 
       required: true 
   }],
   
-  // ⚠️ MUST be named 'itemId' to match controller
+  // MUST be named 'itemId' to match controller
   itemId: { 
       type: Schema.Types.ObjectId, 
       ref: 'Item',

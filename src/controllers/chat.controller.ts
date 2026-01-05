@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose'; // 👈 Needed for ID validation
+import mongoose from 'mongoose'; 
 import { Chat } from '../models/chat.model';
 import { Message } from '../models/message.model';
 import { io } from '../index'; 
@@ -7,31 +7,31 @@ import { io } from '../index';
 // Helper to validate Mongo IDs (Prevents server crashes)
 const isValidId = (id: any) => mongoose.Types.ObjectId.isValid(id);
 
-// 1. Create or Get Existing Chat
+// Create or Get Existing Chat
 export const accessChat = async (req: Request, res: Response) => {
   try {
     const { userId, itemId } = req.body; 
     
-    // A. Robust User Extraction
+    // Robust User Extraction
     const userPayload = (req as any).user;
     if (!userPayload) return res.status(401).json({ message: "User not authenticated" });
     const myId = userPayload.id || userPayload._id || userPayload.sub;
 
     console.log(`🔹 Chat Request: Me[${myId}] -> Other[${userId}] Item[${itemId}]`);
 
-    // B. Validation Checks
+    // Validation Checks
     if (!userId || !isValidId(userId)) {
         return res.status(400).json({ message: "Invalid Target User ID" });
     }
     
-    // Fix: Handle empty string itemId by converting to undefined
+    //Handle empty string itemId by converting to undefined
     const validItemId = (itemId && isValidId(itemId)) ? itemId : undefined;
 
     if (myId === userId) {
         return res.status(400).json({ message: "You cannot chat with yourself" });
     }
 
-    // C. Find Existing Chat
+    //Find Existing Chat
     let query: any = {
         $and: [
             { participants: { $elemMatch: { $eq: myId } } },
@@ -51,7 +51,7 @@ export const accessChat = async (req: Request, res: Response) => {
     if (isChat) {
         res.send(isChat);
     } else {
-        // D. Create New Chat
+        //Create New Chat
         const chatData = {
             participants: [myId, userId],
             itemId: validItemId, // Safe to pass undefined
@@ -73,7 +73,7 @@ export const accessChat = async (req: Request, res: Response) => {
   }
 };
 
-// 2. Fetch All Chats for Sidebar
+//Fetch All Chats for Sidebar
 export const fetchMyChats = async (req: Request, res: Response) => {
   try {
     const userPayload = (req as any).user;
@@ -91,16 +91,16 @@ export const fetchMyChats = async (req: Request, res: Response) => {
   }
 };
 
-// 3. Send Message
+// Send Message
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     const { chatId, content } = req.body;
     
-    // A. Robust User Extraction
+    //Robust User Extraction
     const userPayload = (req as any).user;
     const senderId = userPayload.id || userPayload._id || userPayload.sub;
 
-    // B. Validation
+    // Validation
     if (!content || !chatId) {
       return res.status(400).json({ message: "Invalid data passed into request" });
     }
@@ -109,19 +109,19 @@ export const sendMessage = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Invalid Chat ID" });
     }
 
-    // C. Save Message to DB (Matches Schema)
+    //Save Message to DB (Matches Schema)
     let newMessage = await Message.create({
       sender: senderId,   // Schema field: 'sender'
       text: content,      // Schema field: 'text'
       chatId: chatId,
     });
 
-    // D. Update Chat's 'lastMessage' (Matches Schema)
+    //Update Chat's 'lastMessage' (Matches Schema)
     await Chat.findByIdAndUpdate(chatId, { 
         lastMessage: content 
     });
 
-    // E. Populate info for Frontend return
+    //Populate info for Frontend return
     newMessage = await newMessage.populate("sender", "fullName avatar");
     newMessage = await newMessage.populate("chatId");
 

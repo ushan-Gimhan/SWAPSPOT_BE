@@ -8,14 +8,14 @@ export interface IMessage extends Document {
 }
 
 const MessageSchema: Schema = new Schema({
-  // ⚠️ Match controller: 'chatId'
+  // Match controller: 'chatId'
   chatId: { 
       type: Schema.Types.ObjectId, 
       ref: 'Chat', 
       required: true 
   },
   
-  // ⚠️ Match controller: 'sender' (Backend often uses 'sender' or 'senderId')
+  // Match controller: 'sender' (Backend often uses 'sender' or 'senderId')
   // In your controller you used: sender: senderId
   sender: { 
       type: Schema.Types.ObjectId, 
@@ -23,7 +23,7 @@ const MessageSchema: Schema = new Schema({
       required: true 
   },
 
-  // ⚠️ Match controller: 'text' (Not 'content' or 'message')
+  //Match controller: 'text' (Not 'content' or 'message')
   text: { 
       type: String, 
       required: true 

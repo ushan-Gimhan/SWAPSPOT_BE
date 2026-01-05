@@ -15,10 +15,10 @@ dotenv.config();
 
 const app = express();
 
-// 1. Create HTTP Server (Required for Socket.io)
+// Create HTTP Server (Required for Socket.io)
 const server = http.createServer(app);
 
-// 2. Middleware
+//Middleware
 app.use(express.json());
 app.use(cors({
     origin: 'http://localhost:5173', // Frontend URL
@@ -26,14 +26,14 @@ app.use(cors({
     credentials: true
 }));
 
-// 3. Mount Routes
+//Mount Routes
 // Place these BEFORE server.listen
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/items', itemRoutes);
 app.use('/api/v1', profileRoutes); // Check if this should be /api/v1/profile
 app.use('/api/v1/chat', chatRoutes);
 
-// 4. Database Connection
+//Database Connection
 const MONGO_URI = process.env.MONGO_URI as string;
 mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB"))
@@ -42,7 +42,7 @@ mongoose.connect(MONGO_URI)
     process.exit(1);
   });
 
-// 5. Initialize Socket.io
+//Initialize Socket.io
 export const io = new Server(server, {
   pingTimeout: 60000,
   cors: {
@@ -52,30 +52,24 @@ export const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log("🔌 Socket Connected:", socket.id);
+  console.log("Socket connected:", socket.id);
 
-  socket.on("setup", (userData) => {
-    if (userData && userData.id) {
-        socket.join(userData.id);
-        socket.emit("connected");
-    }
+  socket.on("setup", (user) => {
+    socket.join(user._id);
+    socket.emit("connected");
   });
 
-  socket.on("join chat", (room) => {
-    socket.join(room);
-    console.log("User Joined Room: " + room);
+  socket.on("join chat", (chatId) => {
+    socket.join(chatId);
   });
 
-  socket.on("typing", (room) => socket.in(room).emit("typing"));
-  socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
-
-  socket.off("setup", () => {
-    console.log("USER DISCONNECTED");
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected");
   });
 });
 
-// 6. Start Server
-// ⚠️ IMPORTANT: Use 'server.listen', NOT 'app.listen'
+//Start Server
+//IMPORTANT: Use 'server.listen', NOT 'app.listen'
 const PORT = process.env.SERVER_PORT || 5000;
 
 server.listen(PORT, () => {
