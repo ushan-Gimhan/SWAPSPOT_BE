@@ -82,6 +82,10 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid credentials" })
     }
 
+    if (!existingUser.password) {
+      return res.status(401).json({ message: "Invalid credentials" })
+    }
+
     const valid = await bcrypt.compare(password, existingUser.password)
     if (!valid) {
       return res.status(401).json({ message: "Invalid credentials" })
@@ -199,4 +203,64 @@ export const handleRefreshToken = async (req: Request, res: Response) => {
     res.status(403).json({ message: 'Invalid or expired refresh token' })
   }
 }
+
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const userIdToDelete = req.params.id;
+
+    // 1. Safety Check: Prevent admin from deleting themselves
+    if (req.user && req.user.id === userIdToDelete) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Security violation: You cannot delete your own admin account." 
+      });
+    }
+
+    // 2. Find and delete
+    const user = await User.findByIdAndDelete(userIdToDelete);
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found." 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `User ${user.fullName} has been purged from the system.`
+    });
+
+  } catch (error: any) {
+    console.error("Delete User Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error during user deletion" 
+    });
+  }
+};
+
+export const updateUserStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { approved } = req.body;
+
+    if (!["APPROVED", "PENDING", "REJECTED"].includes(approved)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      { approved },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 

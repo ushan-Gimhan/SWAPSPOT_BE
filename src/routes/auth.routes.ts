@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { register, login, getMe, registerAdmin, handleRefreshToken } from '../controllers/authcontroller.controller'
+import { register, login, getMe, registerAdmin, handleRefreshToken ,deleteUser,updateUserStatus} from '../controllers/authcontroller.controller'
 import { authenticate } from '../middlewares/auth.middlewares'
 import { isAdmin } from '../middlewares/isAdmin.middlewares'
 import passport from 'passport';
@@ -19,11 +19,15 @@ router.post('/login', login)
 // protected route (USER, AUTHOR, ADMIN)
 router.get('/me', authenticate, getMe)
 
+router.put('/profileUpdate', authenticate, updateUserStatus);
+
 // /api/v1/auth/admin/register
 // protected route (ADMIN)
 router.post('/admin/register', authenticate, isAdmin, registerAdmin)
 
 router.post('/auth/refreshtoken',handleRefreshToken)
+
+router.delete('/:id', authenticate, isAdmin, deleteUser);
 
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 

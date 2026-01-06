@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { getProfile, updateProfile, deleteAccount ,changePassword } from '../controllers/profile.controller';
-import { authenticate } from '../middlewares/auth.middlewares';
+import { getProfile, updateProfile, deleteAccount ,changePassword , getAllProfiles} from '../controllers/profile.controller';
+import { authenticate  } from '../middlewares/auth.middlewares';
 
 const router = Router();
 
+router.get('/users', getAllProfiles);
 //GET /api/v1/profile
 router.get('/profile', authenticate, getProfile);
 
@@ -14,5 +15,7 @@ router.put('/profileUpdate', authenticate, updateProfile);
 router.delete('/profileDelete', authenticate, deleteAccount);
 
 router.put('/changePassword', authenticate, changePassword);
+
+
 
 export default router;

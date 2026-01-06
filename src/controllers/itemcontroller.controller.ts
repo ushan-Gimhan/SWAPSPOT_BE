@@ -228,3 +228,22 @@ export const getOthersItems = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: err?.message || "Server error" });
   }
 }
+
+
+// /api/v1/items
+export const getAllItem = async (req: AuthRequest, res: Response) => {
+  try {
+    // Fetch all items, most recent first
+    const items = await Item.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: items.length,
+      data: items,
+    });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ message: err?.message || "Server error" });
+  }
+};
+

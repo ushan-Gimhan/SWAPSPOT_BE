@@ -125,7 +125,7 @@ export const changePassword = async (req: Request, res: Response) => {
     }
 
     // 3. Verify Current Password
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const isMatch = await bcrypt.compare(currentPassword, user.password!);
     if (!isMatch) {
       return res.status(400).json({ message: "Incorrect current password" });
     }
@@ -145,5 +145,28 @@ export const changePassword = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Change Password Error:", error);
     res.status(500).json({ message: "Server Error while updating password" });
+  }
+};
+
+export const getAllProfiles = async (req: Request, res: Response) => {
+  try {
+    // .lean() makes the query faster by returning plain JS objects instead of Mongoose documents
+    const users = await User.find()
+      .select('-password')
+      .lean(); 
+
+    // Always check if users is an array (even if empty) before returning
+    res.status(200).json({
+      success: true,
+      count: users.length, // Useful for the frontend to know the list size
+      data: users
+    });
+  } catch (error: any) {
+    console.error("Get All Profiles Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server Error fetching profiles",
+      error: error.message // Helpful for debugging during development
+    });
   }
 };
