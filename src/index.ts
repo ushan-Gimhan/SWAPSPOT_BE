@@ -56,30 +56,25 @@ export const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
+  console.log("New socket connected:", socket.id);
+
   socket.on("setup", (user) => {
-    socket.join(user._id);
+    if (!user || !user._id) {
+      console.log("Invalid user setup:", user);
+      socket.disconnect();
+      return;
+    }
+    console.log("User setup:", user);
+    socket.join(user._id); // join a room with their user ID
     socket.emit("connected");
   });
 
-  socket.on("join chat", (chatId) => {
-    socket.join(chatId);
-  });
-
-  socket.on("new message", (newMessageReceived) => {
-    const chat = newMessageReceived.chat;
-
-    // Safety check: if chat or participants are missing, don't crash
-    if (!chat || !chat.participants) return console.log("Chat participants not defined");
-
-    chat.participants.forEach((user: any) => {
-      // Don't send the message to the person who sent it
-      if (user._id === newMessageReceived.sender._id) return;
-
-      // Send to the other person's private room
-      socket.in(user._id).emit("message received", newMessageReceived);
-    });
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected:", socket.id);
   });
 });
+
+
 
 //Start Server
 //IMPORTANT: Use 'server.listen', NOT 'app.listen'

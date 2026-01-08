@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { IUser, Role, Status, User } from '../models/user.model'
 import { signAccessToken } from '../utils/tokens'
 import { AuthRequest } from "../middlewares/auth.middlewares";
+import PDFDocument from 'pdfkit';
 
 const JWT_REFRESH_SECRET: string = process.env.JWT_REFRESH_SECRET || '';
 
@@ -204,63 +205,165 @@ export const handleRefreshToken = async (req: Request, res: Response) => {
   }
 }
 
-export const deleteUser = async (req: AuthRequest, res: Response) => {
-  try {
-    const userIdToDelete = req.params.id;
-
-    // 1. Safety Check: Prevent admin from deleting themselves
-    if (req.user && req.user.id === userIdToDelete) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Security violation: You cannot delete your own admin account." 
-      });
-    }
-
-    // 2. Find and delete
-    const user = await User.findByIdAndDelete(userIdToDelete);
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "User not found." 
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `User ${user.fullName} has been purged from the system.`
-    });
-
-  } catch (error: any) {
-    console.error("Delete User Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Server Error during user deletion" 
-    });
-  }
-};
-
 export const updateUserStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { approved } = req.body;
+    const { status } = req.body; 
 
-    if (!["APPROVED", "PENDING", "REJECTED"].includes(approved)) {
-      return res.status(400).json({ message: "Invalid status" });
+    // 1. Validate Input Status
+    const validStatuses = ["APPROVED", "PENDING", "REJECTED"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        message: `Invalid status. Must be one of: ${validStatuses.join(", ")}` 
+      });
     }
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { approved },
-      { new: true }
-    );
+    // 2. Find User
+    const userToUpdate = await User.findById(id);
+    if (!userToUpdate) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    // 3. Robust Admin Check
+    // We check if any role matches 'ADMIN', case-insensitive
+    const isAdmin = userToUpdate.roles?.some((role: any) => {
+      const roleName = typeof role === 'string' ? role : role.name;
+      return roleName?.toUpperCase() === 'ADMIN';
+    });
 
-    res.status(200).json(user);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    if (isAdmin) {
+      return res.status(403).json({ message: "Security Restriction: Admin status cannot be modified." });
+    }
+
+    // 4. Perform Update
+    userToUpdate.approved = status;
+    await userToUpdate.save();
+
+    res.status(200).json({ 
+      message: "User approval status updated successfully", 
+      data: userToUpdate 
+    });
+
+  } catch (err: any) {
+    console.error("Update Status Error:", err);
+    res.status(500).json({ message: "Internal server error", error: err.message });
   }
 };
 
+export const createUserReports = async (req: Request, res: Response) => {
+  try {
+    const { users } = req.body;
+
+    if (!users || !Array.isArray(users)) {
+      return res.status(400).json({ message: "User data is required" });
+    }
+
+    // Initialize the document with proper typing
+    const doc: PDFKit.PDFDocument = new PDFDocument({ 
+      margin: 50, 
+      size: 'A4' 
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=User_Report.pdf');
+
+    doc.pipe(res);
+
+    // --- Header ---
+    doc.fillColor('#0f172a').fontSize(22).text('User Directory Report');
+    doc.fontSize(10).fillColor('#64748b').text(`Date: ${new Date().toLocaleDateString()}`);
+    doc.moveDown(2);
+
+    // --- Table Configuration ---
+    const tableTop = 150;
+    const columns = {
+      name: 50,
+      email: 200,
+      role: 380,
+      status: 480
+    };
+
+    // Header Row
+    doc.fillColor('#475569').font('Helvetica-Bold').fontSize(10);
+    doc.text('IDENTITY', columns.name, tableTop);
+    doc.text('EMAIL', columns.email, tableTop);
+    doc.text('ROLE', columns.role, tableTop);
+    doc.text('STATUS', columns.status, tableTop);
+    
+    // Line underneath header
+    // FIX: Use lineWidth instead of strokeWidth
+    doc.moveTo(50, tableTop + 15)
+       .lineTo(550, tableTop + 15)
+       .lineWidth(1) 
+       .strokeColor('#cbd5e1')
+       .stroke();
+
+    // --- Data Rows ---
+    let currentY = tableTop + 30;
+    doc.font('Helvetica').fontSize(10).fillColor('#1e293b');
+
+    users.forEach((user: any) => {
+      if (currentY > 750) {
+        doc.addPage();
+        currentY = 50;
+      }
+
+      doc.font('Helvetica-Bold').text(user.fullName || '', columns.name, currentY);
+      doc.font('Helvetica').text(user.email || '', columns.email, currentY);
+      doc.text(user.roles?.[0] || 'USER', columns.role, currentY);
+      
+      const status = user.approved || 'PENDING';
+      const color = status === 'APPROVED' ? '#10b981' : status === 'REJECTED' ? '#f43f5e' : '#f59e0b';
+
+      doc.fillColor(color).font('Helvetica-Bold').text(status, columns.status, currentY);
+      doc.fillColor('#1e293b').font('Helvetica'); // Reset colors
+
+      currentY += 25;
+    });
+
+    doc.end();
+
+  } catch (err: any) {
+    console.error("PDF Error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: err?.message || "Internal Server Error" });
+    }
+  }
+};
+
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Find the user first
+    const userToDelete = await User.findById(id);
+    
+    if (!userToDelete) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2. Robust Admin Check
+    // This handles both string arrays ["ADMIN"] and populated object arrays [{name: "ADMIN"}]
+    const isAdmin = userToDelete.roles?.some((role: any) => {
+      const roleName = typeof role === 'string' ? role : role.name;
+      return roleName?.toUpperCase() === 'ADMIN';
+    });
+
+    if (isAdmin) {
+      return res.status(403).json({ 
+        message: "Security Protocol: Users with ADMIN roles cannot be deleted from the dashboard." 
+      });
+    }
+
+    // 3. Final Deletion
+    await User.findByIdAndDelete(id);
+
+    res.status(200).json({ 
+      message: `User ${userToDelete.fullName} deleted successfully.` 
+    });
+    
+  } catch (err: any) {
+    console.error("Delete User Error:", err);
+    res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+};

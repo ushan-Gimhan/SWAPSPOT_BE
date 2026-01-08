@@ -1,48 +1,57 @@
 import { Request, Response } from 'express';
 
-// --- MOCK AI CONTROLLER (Works Instantly, No Key Needed) ---
+// --- POWERFUL MOCK AI CONTROLLER ---
 export const getAiPriceSuggestion = async (req: Request, res: Response) => {
   try {
     const { title, category, condition, description } = req.body;
 
-    console.log(`[AI] Analyzing item: ${title}...`);
+    console.log(`[AI] Starting analysis for item: "${title}"...`);
 
-    // 1. Simulate "Thinking" Delay (1.5 seconds)
-    // This makes the loading spinner show up on the frontend
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // 1️⃣ Simulate thinking delay (1.5 - 2.5 seconds)
+    const delay = 1500 + Math.random() * 1000;
+    await new Promise(resolve => setTimeout(resolve, delay));
 
-    // 2. Logic to generate a realistic-looking price
-    let basePrice = 5000;
+    // 2️⃣ Base price by category
     const lowerCat = (category || "").toLowerCase();
+    let basePrice = 5000;
 
-    // Set base price by category
-    if (lowerCat.includes("tech") || lowerCat.includes("electron")) basePrice = 65000;
-    else if (lowerCat.includes("fashion") || lowerCat.includes("cloth")) basePrice = 3500;
+    if (lowerCat.includes("tech") || lowerCat.includes("electron")) basePrice = 60000;
+    else if (lowerCat.includes("fashion") || lowerCat.includes("cloth")) basePrice = 4000;
     else if (lowerCat.includes("home") || lowerCat.includes("furniture")) basePrice = 12000;
     else if (lowerCat.includes("vehicle")) basePrice = 1500000;
-    else if (lowerCat.includes("music")) basePrice = 25000;
+    else if (lowerCat.includes("music") || lowerCat.includes("instrument")) basePrice = 25000;
+    else if (lowerCat.includes("sports") || lowerCat.includes("outdoor")) basePrice = 15000;
+    else if (lowerCat.includes("book") || lowerCat.includes("education")) basePrice = 2000;
 
-    // Adjust for condition
-    if (condition === "Brand New") basePrice *= 1.3;
-    if (condition === "Used - Good") basePrice *= 0.8;
-    if (condition === "For Parts") basePrice *= 0.2;
+    // 3️⃣ Adjust for condition
+    const cond = (condition || "").toLowerCase();
+    if (cond.includes("brand new")) basePrice *= 1.3;
+    if (cond.includes("like new")) basePrice *= 1.15;
+    if (cond.includes("used - good")) basePrice *= 0.8;
+    if (cond.includes("used - fair")) basePrice *= 0.6;
+    if (cond.includes("for parts")) basePrice *= 0.2;
 
-    // Add randomness so it doesn't look hardcoded
-    // Adds or subtracts up to 15% value
-    const variance = Math.floor(Math.random() * (basePrice * 0.3)) - (basePrice * 0.15);
-    const finalPrice = Math.max(500, Math.round((basePrice + variance) / 100) * 100); // Round to nearest 100
+    // 4️⃣ Optional description analysis (simulate smarter AI)
+    let descMultiplier = 1;
+    if (description && description.length > 100) descMultiplier += 0.05; // +5% for detailed description
+    if (description && description.toLowerCase().includes("limited edition")) descMultiplier += 0.15; // +15% for rare items
+    basePrice *= descMultiplier;
 
-    console.log(`[AI] Suggested Price: ${finalPrice} LKR`);
+    // 5️⃣ Add randomness: ±10-20% variance
+    const variance = Math.floor(Math.random() * (basePrice * 0.2)) - (basePrice * 0.1);
+    const finalPrice = Math.max(500, Math.round((basePrice + variance) / 100) * 100); // round to nearest 100
 
-    // 3. Return Success
-    res.status(200).json({ 
+    console.log(`[AI] Finished analysis. Suggested price: ${finalPrice} LKR`);
+
+    // ✅ Return the mock AI price
+    return res.status(200).json({
       success: true,
       price: finalPrice,
       message: "AI Estimation successful"
     });
 
   } catch (error: any) {
-    console.error("AI Error:", error);
-    res.status(500).json({ message: "Failed to estimate price." });
+    console.error("[AI ERROR]", error);
+    return res.status(500).json({ success: false, message: "AI failed to estimate price." });
   }
 };

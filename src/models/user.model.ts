@@ -3,8 +3,8 @@ import mongoose, { Document, Schema } from "mongoose";
 export enum Role {
   ADMIN = "ADMIN",
   USER = "USER"
-}
 
+}
 export enum Status {
   PENDING = "PENDING",
   APPROVED = "APPROVED",
