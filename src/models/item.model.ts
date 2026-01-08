@@ -31,6 +31,7 @@ export interface IItem extends Document {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  status?: string; // For future use (e.g., SOLD, EXCHANGED)
 }
 
 const itemSchema = new Schema<IItem>(

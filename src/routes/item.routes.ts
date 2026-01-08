@@ -8,6 +8,8 @@ import {
   getMyItems,
   getOthersItems,
   getAllItem,
+  updateItemStatus,
+  createItmReports,
 } from "../controllers/itemcontroller.controller"; 
 import { authenticate } from "../middlewares/auth.middlewares";
 import { getAiPriceSuggestion } from "../controllers/aicontroller.controller";
@@ -27,6 +29,10 @@ router.post("/create", authenticate, createItem);
 router.put("/:id", authenticate, updateItem);
 router.delete("/:id", authenticate, deleteItem);
 
+router.put("/updateStatus/:id", authenticate, updateItemStatus);
+
 router.post("/ai-price", authenticate, getAiPriceSuggestion);
+
+router.post("/createReports", authenticate, createItmReports);
 
 export default router;

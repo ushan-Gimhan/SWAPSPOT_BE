@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { Item, IItem } from '../models/item.model' // Ensure this path matches your file structure
+import { Item } from '../models/item.model' // Ensure this path matches your file structure
 import { AuthRequest } from "../middlewares/auth.middlewares"; // Or wherever your interface is defined
 
 // /api/v1/items/create
@@ -153,32 +153,16 @@ export const updateItem = async (req: AuthRequest, res: Response) => {
   }
 }
 
-// /api/v1/items/:id (Delete)
-export const deleteItem = async (req: AuthRequest, res: Response) => {
+export const deleteItem = async (req: Request, res: Response) => {
   try {
-    const item = await Item.findById(req.params.id)
-
-    if (!item) {
-      return res.status(404).json({ message: "Item not found" })
-    }
-
-    // Check Ownership
-    const userId = req.user?.id || req.user?._id || req.user?.sub;
-
-    if (item.userId.toString() !== userId?.toString()) {
-      return res.status(403).json({ message: "Not authorized to delete this item" })
-    }
-
-    // Hard Delete
-    await item.deleteOne()
-
-    res.status(200).json({ 
-      message: "Item removed successfully" 
-    })
-  } catch (err: any) {
-    res.status(500).json({ message: err?.message })
+    const { id } = req.params;
+    await Item.findByIdAndDelete(id);
+    res.status(200).json({ message: "Item deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete item" });
   }
-}
+};
 
 export const getMyItems = async (req: Request, res: Response) => {
   try {
@@ -246,4 +230,113 @@ export const getAllItem = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: err?.message || "Server error" });
   }
 };
+
+// --- Update Item Status (Moderation) ---
+export const updateItemStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate if the status is one of the allowed types
+    const allowedStatuses = ["available", "pending", "sold"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const updatedItem = await Item.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true } // returns the document after update
+    );
+
+    if (!updatedItem) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+
+    res.status(200).json({
+      message: "Item status updated successfully",
+      data: updatedItem
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+import PDFDocument from "pdfkit";
+
+// Use your frontend Item interface for type safety
+interface IItem {
+  _id: string;
+  title: string;
+  category: string;
+  price?: number;
+  status: "available" | "pending" | "sold";
+  sellerName: string;
+  sellerImage?: string;
+  images?: string[];
+}
+
+export const createItmReports = async (req: Request<{}, {}, { items: IItem[] }>, res: Response) => {
+  try {
+    const { items } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: "No items provided for report." });
+    }
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=Item_Report.pdf');
+
+    doc.pipe(res);
+
+    // Title
+    doc.fillColor('#0f172a').fontSize(20).text('Item Report', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).fillColor('#64748b').text(`Generated on: ${new Date().toLocaleString()}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // Table headers
+    const tableTop = 130;
+    const col1 = 50;   // Title
+    const col2 = 250;  // Category
+    const col3 = 400;  // Price
+    const col4 = 500;  // Status
+
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#1e293b');
+    doc.text('TITLE', col1, tableTop);
+    doc.text('CATEGORY', col2, tableTop);
+    doc.text('PRICE (LKR)', col3, tableTop);
+    doc.text('STATUS', col4, tableTop);
+
+    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#e2e8f0').stroke();
+
+    // Table body
+    let currentY = tableTop + 25;
+    doc.font('Helvetica').fontSize(10).fillColor('#1e293b');
+
+    items.forEach((item) => {
+      if (currentY > 750) {
+        doc.addPage();
+        currentY = 50;
+      }
+
+      doc.text(item.title, col1, currentY, { width: 180, ellipsis: true });
+      doc.text(item.category, col2, currentY);
+      doc.text(item.price?.toLocaleString() || '0', col3, currentY);
+      doc.text(item.status, col4, currentY);
+
+      currentY += 20;
+    });
+
+    doc.end();
+
+  } catch (error) {
+    console.error("Error generating item report PDF:", error);
+    res.status(500).json({ message: "Server error while generating report." });
+  }
+};
+
 
