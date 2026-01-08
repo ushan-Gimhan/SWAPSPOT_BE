@@ -163,7 +163,7 @@ export const registerAdmin = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const newUser = new User({
-      fullName, // fullName: fullName
+      fullName,
       email,
       password: hashedPassword,
       roles: [Role.ADMIN],
@@ -210,7 +210,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status } = req.body; 
 
-    // 1. Validate Input Status
+    //Validate Input Status
     const validStatuses = ["APPROVED", "PENDING", "REJECTED"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ 
@@ -218,14 +218,13 @@ export const updateUserStatus = async (req: Request, res: Response) => {
       });
     }
 
-    // 2. Find User
+    //Find User
     const userToUpdate = await User.findById(id);
     if (!userToUpdate) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 3. Robust Admin Check
-    // We check if any role matches 'ADMIN', case-insensitive
+    //Admin Check
     const isAdmin = userToUpdate.roles?.some((role: any) => {
       const roleName = typeof role === 'string' ? role : role.name;
       return roleName?.toUpperCase() === 'ADMIN';
@@ -235,7 +234,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Security Restriction: Admin status cannot be modified." });
     }
 
-    // 4. Perform Update
+    //Perform Update
     userToUpdate.approved = status;
     await userToUpdate.save();
 
@@ -335,14 +334,14 @@ export const deleteUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // 1. Find the user first
+    //Find the user first
     const userToDelete = await User.findById(id);
     
     if (!userToDelete) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 2. Robust Admin Check
+    //Robust Admin Check
     // This handles both string arrays ["ADMIN"] and populated object arrays [{name: "ADMIN"}]
     const isAdmin = userToDelete.roles?.some((role: any) => {
       const roleName = typeof role === 'string' ? role : role.name;
@@ -355,7 +354,7 @@ export const deleteUser = async (req: Request, res: Response) => {
       });
     }
 
-    // 3. Final Deletion
+    //Final Deletion
     await User.findByIdAndDelete(id);
 
     res.status(200).json({ 

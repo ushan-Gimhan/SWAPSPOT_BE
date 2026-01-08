@@ -1,154 +1,151 @@
-import { Request, Response } from 'express';
-import mongoose from 'mongoose'; 
-import { Chat } from '../models/chat.model';
-import { Message } from '../models/message.model';
-import { io } from '../index'; 
+import { Request, Response } from "express";
+import mongoose from "mongoose";
+import { Chat } from "../models/chat.model";
+import { Message } from "../models/message.model";
 
-// Helper to validate Mongo IDs (Prevents server crashes)
+// Helper to validate Mongo IDs
 const isValidId = (id: any) => mongoose.Types.ObjectId.isValid(id);
 
-// Create or Get Existing Chat
+// ------------------- ACCESS CHAT -------------------
 export const accessChat = async (req: Request, res: Response) => {
   try {
-    const { userId, itemId } = req.body; 
-    
-    // Robust User Extraction
+    const { userId, itemId } = req.body;
     const userPayload = (req as any).user;
-    if (!userPayload) return res.status(401).json({ message: "User not authenticated" });
-    const myId = userPayload.id || userPayload._id || userPayload.sub;
+    if (!userPayload)
+      return res.status(401).json({ message: "User not authenticated" });
 
-    console.log(`🔹 Chat Request: Me[${myId}] -> Other[${userId}] Item[${itemId}]`);
+    const myId = userPayload._id || userPayload.id || userPayload.sub;
+    if (!userId || !isValidId(userId))
+      return res.status(400).json({ message: "Invalid Target User ID" });
 
-    // Validation Checks
-    if (!userId || !isValidId(userId)) {
-        return res.status(400).json({ message: "Invalid Target User ID" });
-    }
-    
-    //Handle empty string itemId by converting to undefined
-    const validItemId = (itemId && isValidId(itemId)) ? itemId : undefined;
+    const validItemId = itemId && isValidId(itemId) ? itemId : undefined;
+    if (myId === userId)
+      return res.status(400).json({ message: "You cannot chat with yourself" });
 
-    if (myId === userId) {
-        return res.status(400).json({ message: "You cannot chat with yourself" });
-    }
-
-    //Find Existing Chat
-    let query: any = {
-        $and: [
-            { participants: { $elemMatch: { $eq: myId } } },
-            { participants: { $elemMatch: { $eq: userId } } },
-        ],
+    const query: any = {
+      $and: [
+        { participants: { $elemMatch: { $eq: myId } } },
+        { participants: { $elemMatch: { $eq: userId } } },
+      ],
     };
+    if (validItemId) query.$and.push({ itemId: validItemId });
 
-    // Only filter by item if a valid item ID exists
-    if (validItemId) {
-        query.$and.push({ itemId: validItemId });
-    }
-
+    // Check if chat exists
     let isChat = await Chat.findOne(query)
-        .populate("participants", "-password")
-        .populate("itemId", "title price images");
+      .populate("participants", "-password")
+      .populate("itemId", "title price images")
+      .lean();
 
     if (isChat) {
-        res.send(isChat);
-    } else {
-        //Create New Chat
-        const chatData = {
-            participants: [myId, userId],
-            itemId: validItemId, // Safe to pass undefined
-            lastMessage: "" // Initialize
-        };
-
-        const createdChat = await Chat.create(chatData);
-        
-        const fullChat = await Chat.findById(createdChat._id)
-            .populate("participants", "-password")
-            .populate("itemId", "title price images");
-
-        res.status(200).json(fullChat);
+      isChat.participants = isChat.participants.map((p: any) => ({
+        ...p,
+        fullName: p.fullName || p["full Name"] || "User",
+        role: p.roles?.[0] || "USER",
+      }));
+      return res.status(200).json(isChat);
     }
 
+    // Create new chat
+    const createdChat = await Chat.create({
+      participants: [myId, userId],
+      itemId: validItemId,
+      lastMessage: "",
+    });
+
+    const fullChat = await Chat.findById(createdChat._id)
+      .populate("participants", "-password")
+      .populate("itemId", "title price images")
+      .lean();
+
+    if (!fullChat)
+      return res.status(500).json({ message: "Failed to create chat" });
+
+    fullChat.participants = fullChat.participants.map((p: any) => ({
+      ...p,
+      fullName: p.fullName || p["full Name"] || "User",
+      role: p.roles?.[0] || "USER",
+    }));
+
+    res.status(200).json(fullChat);
   } catch (error: any) {
     console.error("🔥 ACCESS CHAT ERROR:", error.message);
     res.status(500).json({ message: "Error accessing chat", error: error.message });
   }
 };
 
-//Fetch All Chats for Sidebar
+// ------------------- FETCH ALL CHATS -------------------
 export const fetchMyChats = async (req: Request, res: Response) => {
   try {
     const userPayload = (req as any).user;
-    const myId = userPayload.id || userPayload._id || userPayload.sub;
+    const myId = userPayload._id || userPayload.id || userPayload.sub;
 
     const chats = await Chat.find({ participants: { $elemMatch: { $eq: myId } } })
       .populate("participants", "-password")
       .populate("itemId", "title price images")
-      .sort({ updatedAt: -1 });
-      
-    res.status(200).json(chats);
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const fixedChats = chats.map((chat: any) => ({
+      ...chat,
+      participants: chat.participants.map((p: any) => ({
+        ...p,
+        fullName: p.fullName || p["full Name"] || "User",
+        role: p.roles?.[0] || "USER",
+      })),
+    }));
+
+    res.status(200).json(fixedChats);
   } catch (error: any) {
     console.error("🔥 FETCH CHATS ERROR:", error.message);
     res.status(500).json({ message: "Error fetching chats", error: error.message });
   }
 };
 
-// Send Message
+// ------------------- SEND MESSAGE -------------------
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     const { chatId, content } = req.body;
-    
-    //Robust User Extraction
     const userPayload = (req as any).user;
-    const senderId = userPayload.id || userPayload._id || userPayload.sub;
+    const senderId = userPayload._id || userPayload.id || userPayload.sub;
 
-    // Validation
-    if (!content || !chatId) {
-      return res.status(400).json({ message: "Invalid data passed into request" });
-    }
+    if (!content || !chatId || !isValidId(chatId))
+      return res.status(400).json({ message: "Invalid data" });
 
-    if (!isValidId(chatId)) {
-        return res.status(400).json({ message: "Invalid Chat ID" });
-    }
-
-    //Save Message to DB (Matches Schema)
-    let newMessage = await Message.create({
-      sender: senderId,   // Schema field: 'sender'
-      text: content,      // Schema field: 'text'
-      chatId: chatId,
+    const newMessage = await Message.create({
+      sender: senderId,
+      text: content,
+      chatId,
     });
 
-    //Update Chat's 'lastMessage' (Matches Schema)
-    await Chat.findByIdAndUpdate(chatId, { 
-        lastMessage: content 
-    });
+    // Update lastMessage in chat
+    await Chat.findByIdAndUpdate(chatId, { lastMessage: content });
 
-    //Populate info for Frontend return
-    newMessage = await newMessage.populate("sender", "fullName avatar");
-    newMessage = await newMessage.populate("chatId");
+    // Populate sender
+    const message = await Message.findById(newMessage._id).populate(
+      "sender",
+      "fullName avatar email"
+    );
 
-    // F. REAL-TIME: Emit to Socket.io Room
-    if(io) {
-        io.to(chatId).emit("new message", newMessage);
-    }
+    // Emit to Socket.io
+    const io = req.app.get("io") as any;
+    if (io) io.to(chatId).emit("message received", message);
 
-    res.json(newMessage);
+    res.json(message);
   } catch (error: any) {
     console.error("🔥 SEND MESSAGE ERROR:", error.message);
     res.status(500).json({ message: "Error sending message", error: error.message });
   }
 };
 
-// 4. Fetch Messages for a specific Chat
+// ------------------- FETCH ALL MESSAGES -------------------
 export const allMessages = async (req: Request, res: Response) => {
   try {
     const { chatId } = req.params;
+    if (!isValidId(chatId)) return res.status(400).json({ message: "Invalid Chat ID" });
 
-    if (!isValidId(chatId)) {
-        return res.status(400).json({ message: "Invalid Chat ID" });
-    }
-
-    const messages = await Message.find({ chatId: chatId })
+    const messages = await Message.find({ chatId })
       .populate("sender", "fullName avatar email")
-      .sort({ createdAt: 1 }); // Oldest first (chronological order)
+      .sort({ createdAt: 1 });
 
     res.json(messages);
   } catch (error: any) {

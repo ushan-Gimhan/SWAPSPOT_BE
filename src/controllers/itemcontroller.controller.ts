@@ -20,7 +20,7 @@ export const createItem = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "All required fields must be provided" });
     }
 
-    // 4. Create Item
+    //Create Item
     const newItem = new Item({
       userId: userId,
       title,
@@ -77,11 +77,11 @@ export const getAllItems = async (req: Request, res: Response) => {
     //Run Queries in Parallel (Get Items + Get Total Count)
     const [items, totalItems] = await Promise.all([
       Item.find(query)
-        .populate("userId", "fullName email avatar") // Added avatar if you have it
-        .sort({ createdAt: -1 }) // Newest first
-        .skip(skip)              // Skip previous pages
-        .limit(limitNumber),     // Limit results
-      Item.countDocuments(query) // Count total for pagination UI
+        .populate("userId", "fullName email avatar")
+        .sort({ createdAt: -1 }) 
+        .skip(skip)              
+        .limit(limitNumber),     
+      Item.countDocuments(query) 
     ]);
 
     //Send Response
@@ -103,7 +103,6 @@ export const getAllItems = async (req: Request, res: Response) => {
   }
 };
 
-// /api/v1/items/:id
 export const getItemById = async (req: Request, res: Response) => {
   try {
     const item = await Item.findById(req.params.id).populate("userId", "fullName email")
@@ -120,8 +119,6 @@ export const getItemById = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Invalid Item ID" })
   }
 }
-
-// /api/v1/items/:id (Update)
 export const updateItem = async (req: AuthRequest, res: Response) => {
   try {
     let item = await Item.findById(req.params.id)
@@ -131,7 +128,6 @@ export const updateItem = async (req: AuthRequest, res: Response) => {
     }
 
     // Check Ownership
-    // Using loose equality (==) or toString() handles objectId vs string comparison
     const userId = req.user?.id || req.user?._id || req.user?.sub;
     
     if (item.userId.toString() !== userId?.toString()) {
@@ -167,8 +163,7 @@ export const deleteItem = async (req: Request, res: Response) => {
 export const getMyItems = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    
-    // ✅ FIX: Look for 'sub' as well
+  
     const userId = user.id || user._id || user.sub;
 
     if (!userId) {
@@ -188,15 +183,14 @@ export const getMyItems = async (req: Request, res: Response) => {
 // /api/v1/items/others
 export const getOthersItems = async (req: AuthRequest, res: Response) => {
   try {
-    // 1. Identify the current user
+  
     const userId = req.user?.id || req.user?._id || req.user?.sub;
 
     if (!userId) {
       return res.status(401).json({ message: "User identity missing" });
     }
 
-    // 2. Fetch items where userId is NOT equal ($ne) to the current user
-    // We also likely want the most recent items first (.sort)
+  
     const items = await Item.find({ 
       userId: { $ne: userId } 
     }).sort({ createdAt: -1 });
@@ -213,11 +207,9 @@ export const getOthersItems = async (req: AuthRequest, res: Response) => {
   }
 }
 
-
-// /api/v1/items
 export const getAllItem = async (req: AuthRequest, res: Response) => {
   try {
-    // Fetch all items, most recent first
+  
     const items = await Item.find().sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -300,10 +292,10 @@ export const createItmReports = async (req: Request<{}, {}, { items: IItem[] }>,
 
     // Table headers
     const tableTop = 130;
-    const col1 = 50;   // Title
-    const col2 = 250;  // Category
-    const col3 = 400;  // Price
-    const col4 = 500;  // Status
+    const col1 = 50;   
+    const col2 = 250;  
+    const col3 = 400;  
+    const col4 = 500; 
 
     doc.font('Helvetica-Bold').fontSize(10).fillColor('#1e293b');
     doc.text('TITLE', col1, tableTop);

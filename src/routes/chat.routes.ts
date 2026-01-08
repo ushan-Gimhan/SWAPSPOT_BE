@@ -8,7 +8,7 @@ const router = Router();
 router.post('/', authenticate, accessChat);
 
 // Get all chats for sidebar
-router.get('/', authenticate, fetchMyChats);
+router.get('/getMyChat', authenticate, fetchMyChats);
 
 // Send a message
 router.post('/message', authenticate, sendMessage);

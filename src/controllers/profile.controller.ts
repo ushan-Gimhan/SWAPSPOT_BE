@@ -108,7 +108,7 @@ export const changePassword = async (req: Request, res: Response) => {
 
     const { currentPassword, newPassword } = req.body;
 
-    // 1. Basic Validation
+    //Basic Validation
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: "Please provide both current and new passwords" });
     }
@@ -117,24 +117,24 @@ export const changePassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "New password must be at least 6 characters" });
     }
 
-    // 2. Find User (Explicitly select password since it's usually hidden)
+    //Find User (Explicitly select password since it's usually hidden)
     const user = await User.findById(userId).select('+password');
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 3. Verify Current Password
+    //Verify Current Password
     const isMatch = await bcrypt.compare(currentPassword, user.password!);
     if (!isMatch) {
       return res.status(400).json({ message: "Incorrect current password" });
     }
 
-    // 4. Hash New Password
+    //Hash New Password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
 
-    // 5. Save
+    //Save
     await user.save();
 
     res.status(200).json({ 
