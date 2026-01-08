@@ -14,17 +14,9 @@ import itemRoutes from "./routes/item.routes";
 import profileRoutes from "./routes/profile.routes";
 import chatRoutes from "./routes/chat.routes";
 
-const express = require('express');
-const app = express();
-
 dotenv.config();
 
 const app = express();
-
-
-// ... your routes and logic ...
-
-module.exports = app; // This is what Vercel needs
 
 // Create HTTP server for Socket.io
 const server: HTTPServer = http.createServer(app);
@@ -55,7 +47,7 @@ const connectDB = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB Connected Successfully!");
   } catch (err) {
-    console.error("❌ MongoDB Connection Error:");
+    console.error("❌ MongoDB Connection Error:", err.message);
     process.exit(1);
   }
 };
